@@ -1,0 +1,191 @@
+---
+title: "GDP Components and contribution of Manufacturing"
+runtime: shiny
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This document is made interactive using Shiny. Unlike the more traditional workflow of creating static reports, we present economic indicator data using r shiny application.For sample we start with trend of all four components of GDP. 
+
+
+## GDP components USA
+ The four components of gross domestic product are personal consumption, business investment, government spending, and net exports. Consumer spending contributes to 68.4% in 2017,which is ~ $12.6 trillion. While Investments and government spending contributes to the same 17.3% of GDP. The United States imports more than it exports, creating a trade deficit. America still imports a lot of petroleum, despite gains in domestic shale oil production. In 2017, imports subtracted  USD 3.3 trillion, while exports added USD 2.5 trillion. As a result, international trade subtracted USD 859 billion from GDP, which is -3% of real GDP.
+ 
+*Highlights*
+1. Consumption and expenditure contribution are growing with a positive growth rate of ~1.5% & ~ 3%  for the last 10 years <br />
+2. Investment has been declining for the last 8 years with an average rate of 3.25% <br />
+3. Net exports has always been a negative contributor to GDP resulting in huge trade deficit,but atleast its on a trend towards a positive number<br />
+
+```{r eruptions, echo=FALSE}
+library(shiny)
+library(ggplot2)
+library(plotly,warn.conflicts = FALSE)
+df1<- read.csv("cig_year.csv")
+
+# Define UI for application that plots features of movies
+ui <- fluidPage(
+  
+  # Sidebar layout with a input and output definitions
+  sidebarLayout(
+    
+    # Inputs
+    sidebarPanel(
+      
+      # Select variable for y-axis
+      selectInput(inputId = "y", 
+                  label = "Y-axis:",
+                  choices = c("value in %"        = "value", 
+                              "Year"       = "Year" 
+                  ), 
+                  selected = "value"),
+      
+      # Select variable for x-axis
+      selectInput(inputId = "x", 
+                  label = "X-axis:",
+                  choices = c("Year"= "Year"
+                  ), 
+                  selected = "Year"),
+      
+      # Select variable for color
+      selectInput(inputId = "z", 
+                  label = "Color by:",
+                  choices = c(
+                    "component" = "component"
+                  ),
+                  selected = "component"),
+      sliderInput(inputId = "alpha",label = "Years:",min = 1929,max = 2018,
+                  value = c(1967, 2017))
+      
+      
+    ),
+    
+    # Outputs
+    mainPanel(
+      plotlyOutput(outputId = "scatterplot")
+    )
+  )
+)
+
+# Define server function required to create the scatterplot
+server <- function(input, output) {
+  output$scatterplot <- renderPlotly({
+    ggplotly({
+    data <- subset(df1,Year >= input$alpha[1] & Year <= input$alpha[2])
+    ggplot(data = data, aes_string(x=input$x, y = input$y,
+                                   color = input$z)) +
+      geom_line()
+  
+  })
+  })
+}
+
+shinyApp(ui = ui, server = server)
+
+```
+
+## Manufacturing sector contribution towards GDP
+We compare USA contribution of manufacturing with other major economies of the world.The contribution of manufacturing is on a decreasing trend for USA and UK while other leading industrial nations are still have an incresing trend for manufacturing in the last 5 years.
+The input slider of years will change the timeline selected for the plot/table. A linear regression line can also be plotted to check the trend of the selected time line.<br/>
+
+*Highlights:-*
+1. Manufacturing sector has been on the decline in USA along with other leading economies <br />
+2. South Korea is the only one nation which has a positive growth rate in its Manufacuturing contribution towards GDP<br />
+3. 
+
+```{r eruptions1, echo=FALSE}
+library(shiny)
+library(plotly)
+df<- read.csv("mfg.csv")
+
+
+# Define UI for application that plots features of movies
+ui <- fluidPage(
+  # Create a container for tab panels
+  tabsetPanel(
+    tabPanel(title = "Plot",plotlyOutput(outputId = "scatterplot")),
+  ##for plot and inputs panel
+    tabPanel( title = "Inputs",
+      numericInput("size", "Point size", 1, 1),
+      checkboxInput("fit", "Add line of best fit", FALSE),
+      # Select variable for y-axis
+      selectInput(inputId = "y",label = "Y-axis:",choices = c("mfg_gdp_%"  = "mfg_gdp","Year" ="Year" 
+                  ), 
+                  selected = "mfg_gdp"),
+      
+      # Select variable for x-axis
+  selectInput(inputId = "x",label = "X-axis:",choices = c("Year"= "Year"), selected = "Year"),
+      ##adding download button
+      downloadButton(outputId = "download_data", label = "Download"),
+      ####
+      selectInput("Country", "Country",choices = c("All", levels(df$Country))),
+      # Select variable for color
+      selectInput(inputId = "z",label = "Color by:",choices = c("Country" = "Country"),
+                  selected = "Country"),
+      sliderInput(inputId = "alpha",label = "Years:",min = 1967,max = 2018,
+                  value = c(1981, 2017))
+      
+    ),
+ 
+    # Create "Table" tab
+    tabPanel(title = "Table",tableOutput("table"))
+  )
+)
+
+# Define server function required to create the scatterplot
+server <- function(input, output) {
+  
+  # Create the scatterplot object the plotOutput function is expecting
+  output$scatterplot <- renderPlotly({
+    ggplotly({
+    data <- subset(df,Year >= input$alpha[1] & Year <= input$alpha[2])
+    if (input$Country != "All") {
+      data <- subset( data,Country == input$Country
+      )
+    }
+   p<- ggplot(data = data, aes_string(x = input$x, y = input$y,
+                                   color = input$z)) +
+      geom_line(size = input$size)
+   if (input$fit) {
+     p <- p + geom_smooth(method = "lm")
+   }
+   p
+  })
+  })
+  
+  output$table <- renderTable({
+    data <- df
+    data <- subset(df,Year >= input$alpha[1] & Year <= input$alpha[2])
+    if (input$Country != "All") {
+      data <- subset( data,Country == input$Country
+      )
+    }
+    data
+  })
+  # Create a download handler
+  output$download_data <- downloadHandler(
+    # The downloaded file is named "download.csv"
+    filename = "download.csv",
+    content = function(file) {
+      # The code for filtering the data is copied from the
+      # renderTable() function
+      data <- df
+      data <- subset(df,Year >= input$alpha[1] & Year <= input$alpha[2]
+      )
+      # Write the filtered data into a CSV file
+      write.csv(data, file, row.names = FALSE)
+    }
+  )
+}
+
+# Create a Shiny app object
+shinyApp(ui = ui, server = server)
+
+
+```
+
+Further developements to be made in the report
+
+
